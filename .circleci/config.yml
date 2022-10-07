@@ -2,7 +2,19 @@ version: 2.1
 
 # Define the jobs we want to run for this project
 jobs:
+
   build:
+    docker:
+      - image: alpine:3.15
+        auth:
+          username: mydockerhub-user
+          password: $DOCKERHUB_PASSWORD  # context / project UI env-var reference
+    steps:
+      - run:
+          name: The First Step
+          command: |
+            echo 'Hello World!'
+            echo 'This is the delivery pipeline'
     steps:
       - checkout
       - run: echo "this is the build job"
