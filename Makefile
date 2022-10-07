@@ -50,6 +50,16 @@ test_heartbeat:
 	@echo "Done!"
 	@echo
 
+## test_all: tests all the services
+.PHONY: test_all
+test_all:
+	@echo
+	@echo "Testing all the services..."
+	pytest -v ${TEST_DIR} --html=${TEST_REPORT}
+	open ${TEST_REPORT}
+	@echo "Done!"
+	@echo
+
 ## clean_heartbeat: delete all objects and binaries of HeartBeat service
 .PHONY: clean_heartbeat
 clean_heartbeat:
