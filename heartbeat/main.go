@@ -3,15 +3,14 @@ package main
 import (
 	"log"
 
-	"heartbeat/handlers"
-
+	"github.com/welab2022/LCS2-Micro/heartbeat/handlers"
 	"github.com/gin-gonic/gin"
 )
 
 const webPort = "80"
 
 var (
-	router = gin.Default()
+	router = gin.New()
 )
 
 func main() {
