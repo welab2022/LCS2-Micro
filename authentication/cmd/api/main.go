@@ -2,9 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -14,8 +12,6 @@ import (
 	_ "github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
-
-const webPort = "80"
 
 var counts int64
 
@@ -39,15 +35,17 @@ func main() {
 		Models: data.New(conn),
 	}
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", webPort),
-		Handler: app.routes(),
-	}
+	app.startApp()
 
-	err := srv.ListenAndServe()
-	if err != nil {
-		log.Panic(err)
-	}
+	// srv := &http.Server{
+	// 	Addr:    fmt.Sprintf(":%s", webPort),
+	// 	Handler: app.routes(),
+	// }
+
+	// err := srv.ListenAndServe()
+	// if err != nil {
+	// 	log.Panic(err)
+	// }
 
 }
 

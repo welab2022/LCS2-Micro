@@ -13,7 +13,7 @@ up:
 
 ## up_build: stops docker-compose (if running), builds all projects and starts docker compose
 .PHONY: up_build
-up_build: build_heartbeat build_auth
+up_build: build_auth
 	@echo "Stopping docker images (if running...)"
 	docker-compose down
 	@echo "Building (when required) and starting docker images..."
@@ -29,20 +29,11 @@ down:
 	@echo
 
 ## build_heartbeat: builds the heartbeatApp binary as a linux executable
-.PHONY: build_heartbeat 
-build_heartbeat: clean_heartbeat
-	@echo
-	@echo "Building ${HEARTBEAT_BINARY} binary..." 
-	cd ./heartbeat && env GOOS=linux CGO_ENABLED=0 go build -o ${HEARTBEAT_BINARY} .
-	@echo "Done!"
-	@echo
-
-## build_heartbeat: builds the heartbeatApp binary as a linux executable
 .PHONY: build_auth
 build_auth: clean_auth
 	@echo
 	@echo "Building ${AUTHENTICATION_BINARY} binary..." 
-	cd ./authentication && env GOOS=linux CGO_ENABLED=0 go build -o ${AUTHENTICATION_BINARY} .
+	cd ./authentication && env GOOS=linux CGO_ENABLED=0 go build -o ${AUTHENTICATION_BINARY} ./cmd/api
 	@echo "Done!"
 	@echo
 
@@ -53,16 +44,8 @@ build_mail:
 	# cd ./mail-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MAIL_BINARY} .
 	@echo "Done!"
 
-#############
-## test_heartbeat: tests the heartbeat service
-.PHONY: test_heartbeat
-test_heartbeat:
-	@echo
-	@echo "Testing HeartBeat service..."
-	pytest -v ${TEST_DIR} --html=${TEST_REPORT}
-	@echo "Done!"
-	@echo
 
+#############
 ## test_all: tests all the services
 .PHONY: test_all
 test_all:
@@ -74,15 +57,6 @@ test_all:
 	@echo
 
 #############
-## clean_heartbeat: delete all objects and binaries of HeartBeat service
-.PHONY: clean_heartbeat
-clean_heartbeat:
-	@echo
-	@echo "Cleaning HeartBeat service binaries..."
-	cd ./heartbeat && rm -rf ${HEARTBEAT_BINARY}
-	@echo "Done!"
-	@echo 
-
 ## clean_auth: delete all objects and binaries of Authentication service
 .PHONY: clean_auth
 clean_auth:
@@ -92,7 +66,7 @@ clean_auth:
 	@echo "Done!"
 	@echo 
 
-## clean_all: delete all objects and binaries of all services
+## clean_all: delete all objects and binaries of all the services
 .PHONY: clean_all	
 clean_all: clean_heartbeat clean_auth
 	@echo

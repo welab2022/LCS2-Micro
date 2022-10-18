@@ -1,9 +1,7 @@
-package utils
+package main
 
 import (
-	"bytes"
-	"log"
-	"os/exec"
+	"os"
 	"time"
 )
 
@@ -26,16 +24,17 @@ func GetNowDBDate() string {
 
 func GenerateTokenBase64() string {
 	// cmd := exec.Command("openssl", "rand", "-base64 16")
-	cmd := exec.Command("openssl", "rand", "-base64", "16")
+	// cmd := exec.Command("openssl", "rand", "-base64", "16")
 
-	var out bytes.Buffer
-	cmd.Stdout = &out
+	// var out bytes.Buffer
+	// cmd.Stdout = &out
 
-	err := cmd.Run()
+	// err := cmd.Run()
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	return out.String()
+	// return out.String()
+	return os.Getenv("X_API_KEY")
 }

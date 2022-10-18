@@ -1,15 +1,15 @@
 package main
 
 import (
-	"net/http"
 	"time"
 
-	cors "github.com/itsjamie/gin-cors"
-
 	"github.com/gin-gonic/gin"
+	cors "github.com/itsjamie/gin-cors"
 )
 
-func (app *Config) routes() http.Handler {
+const webPort = "80"
+
+func (app *Config) startApp() {
 
 	router := gin.New()
 
@@ -25,15 +25,16 @@ func (app *Config) routes() http.Handler {
 	}
 
 	// map to URL
-	router.POST("/login", h.LoginHandler)
+	router.GET("/heartbeat", app.HeartBeatHandler)
+	router.POST("/login", app.LoginHandler)
 
 	// Apply the middleware to the router (works on groups too)
 	router.Use(cors.Middleware(config))
 	authorized := router.Group("/")
 	authorized.Use(AuthMiddleWare())
 	{
-		authorized.GET("/logout", app.LogoutHandler)
+		authorized.POST("/logout", app.LogoutHandler)
 	}
 
-	return router
+	router.Run(":" + webPort)
 }

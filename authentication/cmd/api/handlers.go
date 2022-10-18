@@ -52,7 +52,7 @@ func (app *Config) LoginHandler(ctx *gin.Context) {
 		return
 	}
 
-	token := utils.GenerateTokenBase64()
+	token := GenerateTokenBase64()
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -83,5 +83,29 @@ func (app *Config) LoginHandler(ctx *gin.Context) {
 //	'503':
 //	    description: Service not found
 func (app *Config) LogoutHandler(ctx *gin.Context) {
+	ctx.JSON(200, gin.H{
+		"message": "logout",
+	})
 
+}
+
+// swagger:operation GET /heartbeat get heartbeat
+// Get heartbeat
+// ---
+// produces:
+// - application/json
+// parameters:
+//
+// responses:
+//
+//	'200':
+//	    description: Successful operation
+//	'503':
+//	    description: Service not found
+func (app *Config) HeartBeatHandler(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, map[string]string{
+		"status":  "200",
+		"title":   "Health OK",
+		"updated": GetDateString(),
+	})
 }
