@@ -18,5 +18,5 @@
 __pycache__/
 .pytest_cache/
 
-# docker volume
-db-data/
+# .DS_Store
+.DS_Store
