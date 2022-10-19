@@ -1,7 +1,4 @@
 
-SELECT 'CREATE DATABASE public'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'public')\gexec
-
 --
 -- Name: user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
