@@ -1,4 +1,3 @@
-HEARTBEAT_BINARY=heartbeatApp
 AUTHENTICATION_BINARY=authenticationApp
 MAIL_BINARY=mailerApp
 
