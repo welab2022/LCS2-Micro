@@ -1,20 +1,20 @@
 version: '3'
 
 services:
-  # authentication:
-  #   container_name: authentication_service
-  #   build:
-  #     context: ./authentication
-  #     dockerfile: ./authentication.dockerfile
-  #   restart: always
-  #   ports:
-  #     - "8081:80"
-  #   environment:
-  #     DSN: "host=postgres port=5432 user=postgres password=password dbname=users sslmode=disable timezone=UTC connect_timeout=5"
-  #     X_API_KEY: "sWOmNsF8Ht9lE9wMU9cW7w==n"
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
+  authentication:
+    container_name: authentication_service
+    build:
+      context: ./authentication
+      dockerfile: ./authentication.dockerfile
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      DSN: "host=postgres port=5432 user=postgres password=password dbname=users sslmode=disable timezone=UTC connect_timeout=5"
+      X_API_KEY: "sWOmNsF8Ht9lE9wMU9cW7w==n"
+    deploy:
+      mode: replicated
+      replicas: 1
 
   postgres:
     image: 'postgres:14.0'

@@ -21,6 +21,7 @@ type Config struct {
 }
 
 func main() {
+
 	log.Println("Starting authentication service")
 
 	// connect to DB
@@ -60,7 +61,7 @@ func connectToDB() *sql.DB {
 	if dsn == "" {
 		dsn = "host=localhost port=5432 user=postgres password=password dbname=users sslmode=disable timezone=UTC connect_timeout=5"
 	}
-	log.Printf("dsn: %s", dsn)
+
 	for {
 		connection, err := openDB(dsn)
 		if err != nil {

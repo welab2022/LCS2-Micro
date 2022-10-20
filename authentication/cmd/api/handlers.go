@@ -59,6 +59,7 @@ func (app *Config) HeartBeat(ctx *gin.Context) {
 //	'503':
 //	    description: Service not found
 func (app *Config) Signin(ctx *gin.Context) {
+
 	var requestPayload struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -101,11 +102,6 @@ func (app *Config) Signin(ctx *gin.Context) {
 
 	api_key := GenerateTokenBase64()
 
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
-
 	payload := jsonResponse{
 		Status:  "success",
 		Message: fmt.Sprintf("Authenticated! Logged in user: %s", user.Email),
@@ -120,6 +116,7 @@ func (app *Config) Signin(ctx *gin.Context) {
 		Value:   sessionToken,
 		Expires: expiresAt,
 	})
+
 	ctx.JSON(http.StatusAccepted, payload)
 }
 
@@ -137,8 +134,8 @@ func (app *Config) Signin(ctx *gin.Context) {
 //	'503':
 //	    description: Service not found
 func (app *Config) Logout(ctx *gin.Context) {
-	c, err := ctx.Request.Cookie(SESSION_TOKEN)
 
+	c, err := ctx.Request.Cookie(SESSION_TOKEN)
 	if err != nil {
 		if err == http.ErrNoCookie {
 			// If the cookie is not set, return an unauthorized status
@@ -159,6 +156,7 @@ func (app *Config) Logout(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+
 	if userSession.isExpired() {
 		delete(sessions, sessionToken)
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -176,6 +174,7 @@ func (app *Config) Logout(ctx *gin.Context) {
 		Value:   "",
 		Expires: time.Now(),
 	})
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "Logged out!"})
 }
 
