@@ -8,6 +8,8 @@ import (
 )
 
 const webPort = "80"
+const SECRET_STRING = "secret_lcs2"
+const SESSION_STRING = "session_lcs2"
 
 func (app *Config) startApp() {
 
@@ -25,11 +27,12 @@ func (app *Config) startApp() {
 	}
 
 	// map to URL
-	router.GET("/heartbeat", app.HeartBeatHandler)
 	router.POST("/login", app.LoginHandler)
 
 	// Apply the middleware to the router (works on groups too)
+	router.Use(HeartBeatHandler())
 	router.Use(cors.Middleware(config))
+
 	authorized := router.Group("/")
 	authorized.Use(AuthMiddleWare())
 	{

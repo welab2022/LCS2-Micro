@@ -66,8 +66,8 @@ clean_auth:
 	@echo 
 
 ## clean_all: delete all objects and binaries of all the services
-.PHONY: clean_all	
-clean_all: clean_heartbeat clean_auth
+.PHONY: clean
+clean: clean_auth
 	@echo
 	@echo "Cleaning up..."
 	@echo "Done!"

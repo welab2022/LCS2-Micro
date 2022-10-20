@@ -35,21 +35,12 @@ func main() {
 		Models: data.New(conn),
 	}
 
+	// Start auth service
 	app.startApp()
-
-	// srv := &http.Server{
-	// 	Addr:    fmt.Sprintf(":%s", webPort),
-	// 	Handler: app.routes(),
-	// }
-
-	// err := srv.ListenAndServe()
-	// if err != nil {
-	// 	log.Panic(err)
-	// }
-
 }
 
 func openDB(dsn string) (*sql.DB, error) {
+
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, err
@@ -64,8 +55,12 @@ func openDB(dsn string) (*sql.DB, error) {
 }
 
 func connectToDB() *sql.DB {
-	dsn := os.Getenv("DSN")
 
+	dsn := os.Getenv("DSN")
+	if dsn == "" {
+		dsn = "host=localhost port=5432 user=postgres password=password dbname=users sslmode=disable timezone=UTC connect_timeout=5"
+	}
+	log.Printf("dsn: %s", dsn)
 	for {
 		connection, err := openDB(dsn)
 		if err != nil {

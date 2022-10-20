@@ -7,6 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func HeartBeatHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "200",
+			"title":   "Health OK",
+			"updated": GetDateString(),
+		})
+		c.Next()
+	}
+}
+
 func AuthMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 

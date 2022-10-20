@@ -43,6 +43,17 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// ? ForgotPasswordInput struct
+type ForgotPasswordInput struct {
+	Email string `json:"email" binding:"required"`
+}
+
+// ? ResetPasswordInput struct
+type ResetPasswordInput struct {
+	Password        string `json:"password" binding:"required"`
+	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
+}
+
 // GetAll returns a slice of all users, sorted by last name
 func (u *User) GetAll() ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
@@ -104,6 +115,7 @@ func (u *User) GetByEmail(email string) (*User, error) {
 	)
 
 	if err != nil {
+		log.Printf("%s does not exist!", email)
 		return nil, err
 	}
 
