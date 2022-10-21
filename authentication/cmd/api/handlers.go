@@ -159,7 +159,7 @@ func (app *Config) Logout(ctx *gin.Context) {
 
 	if userSession.isExpired() {
 		delete(sessions, sessionToken)
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Expired => Unauthorized. Please refresh your session!"})
 		return
 	}
 
