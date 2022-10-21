@@ -21,6 +21,6 @@ __pycache__/
 # .DS_Store
 .DS_Store
 
-# igore db-data
+# ignore db-data
 db-data/mongo
 db-data/postgres

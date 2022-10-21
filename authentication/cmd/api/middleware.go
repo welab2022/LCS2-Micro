@@ -1,24 +1,11 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 )
-
-func HeartBeat() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		log.Printf("uri: %s", c.Request.RequestURI)
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "200",
-			"title":   "Health OK",
-			"updated": GetDateString(),
-		})
-		c.Next()
-	}
-}
 
 func AuthMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
