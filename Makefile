@@ -12,7 +12,7 @@ up:
 
 ## up_build: stops docker-compose (if running), builds all projects and starts docker compose
 .PHONY: up_build
-up_build: build_auth
+up_build: build_auth build_mail
 	@echo "Stopping docker images (if running...)"
 	docker-compose down
 	@echo "Building (when required) and starting docker images..."
@@ -38,11 +38,12 @@ build_auth: clean_auth
 
 ## build_mail: builds the mail binary as a linux executable 
 .PHONY: build_mail
-build_mail:
-	@echo "Building mail binary..."
-	# cd ./mail-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MAIL_BINARY} .
+build_mail: clean_mail
+	@echo
+	@echo "Building ${MAIL_BINARY} binary..."
+	cd ./mail-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MAIL_BINARY} ./cmd/api
 	@echo "Done!"
-
+	@echo
 
 #############
 ## test_all: tests all the services
@@ -65,9 +66,17 @@ clean_auth:
 	@echo "Done!"
 	@echo 
 
+.PHONY: clean_mail
+clean_mail:
+	@echo
+	@echo "Cleaning Mail service binaries..."
+	cd ./mail-service && rm -rf ${MAIL_BINARY}
+	@echo "Done!"
+	@echo 
+
 ## clean_all: delete all objects and binaries of all the services
 .PHONY: clean
-clean: clean_auth
+clean: clean_auth clean_mail
 	@echo
 	@echo "Cleaning up..."
 	@echo "Done!"
