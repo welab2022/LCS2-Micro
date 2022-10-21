@@ -36,6 +36,7 @@ services:
       FROM_ADDRESS: "admin@example.com"
 
   postgres:
+    container_name: postgresql
     image: 'postgres:14.0'
     ports:
       - "5432:5432"
@@ -46,12 +47,15 @@ services:
       POSTGRES_DB: users
     volumes:
       - ./db-data/postgres/:/var/lib/postgresql/data/
-      - ./db-data/init/users.sql:/docker-entrypoint-initdb.d/users.sql
+      - ./initdb/users.sql:/docker-entrypoint-initdb.d/users.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ckan"]
     deploy:
       mode: replicated
       replicas: 1
 
   mongo:
+    container_name: mongodb
     image: 'mongo:4.4.3'
     ports:
       - "27017:27017"
@@ -63,6 +67,7 @@ services:
       - ./db-data/mongo/:/data/db
 
   mailhog:
+    container_name: mailhog 
     image: 'mailhog/mailhog:latest'
     ports:
       - "1025:1025"
