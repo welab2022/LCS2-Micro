@@ -32,7 +32,7 @@ down:
 build_auth: clean_auth
 	@echo
 	@echo "Building ${AUTHENTICATION_BINARY} binary..." 
-	cd ./authentication && env GOOS=linux CGO_ENABLED=0 go build -o ${AUTHENTICATION_BINARY} ./cmd/api
+	cd ./authentication && GO111MODULE=on go mod download && env GOOS=linux CGO_ENABLED=0 go build -o ${AUTHENTICATION_BINARY} ./cmd/api
 	@echo "Done!"
 	@echo
 
@@ -41,7 +41,7 @@ build_auth: clean_auth
 build_mail: clean_mail
 	@echo
 	@echo "Building ${MAIL_BINARY} binary..."
-	cd ./mail-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MAIL_BINARY} ./cmd/api
+	cd ./mail-service && GO111MODULE=on go mod download && env GOOS=linux CGO_ENABLED=0 go build -o ${MAIL_BINARY} ./cmd/api
 	@echo "Done!"
 	@echo
 
