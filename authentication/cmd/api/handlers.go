@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/welab2022/LCS2-Micro/authentication/data"
 )
 
 type jsonResponse struct {
@@ -178,10 +179,138 @@ func (app *Config) Logout(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Logged out!"})
 }
 
-func (app *Config) Register(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"message": "Register ok!"})
+func (app *Config) validateSession(ctx *gin.Context) bool {
+	c, err := ctx.Request.Cookie(SESSION_TOKEN)
+	if err != nil {
+		if err == http.ErrNoCookie {
+			// If the cookie is not set, return an unauthorized status
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return false
+		}
+		// For any other type of error, return a bad request status
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+		return false
+	}
+
+	sessionToken := c.Value
+
+	// We then get the name of the user from our session map, where we set the session token
+	userSession, exists := sessions[sessionToken]
+	if !exists {
+		// If the session token is not present in session map, return an unauthorized error
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return false
+	}
+
+	if userSession.isExpired() {
+		delete(sessions, sessionToken)
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Expired => Unauthorized. Please refresh your session!"})
+		return false
+	}
+	return true
+}
+
+func (app *Config) AddUser(ctx *gin.Context) {
+
+	if !app.validateSession(ctx) {
+		return
+	}
+
+	// user info request
+	var requestPayload struct {
+		Email     string `json:"email"`
+		FirstName string `json:"first_name,omitempty"`
+		LastName  string `json:"last_name,omitempty"`
+		Password  string `json:"password"`
+	}
+
+	var responseUser struct {
+		Status  string
+		Message string
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	if err := ctx.ShouldBindJSON(&requestPayload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "true",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// check if the user against database is existed
+	_, err := app.Models.User.GetByEmail(requestPayload.Email)
+
+	if err == nil {
+		responseUser.Status = "error"
+		responseUser.Message = fmt.Sprintf("User %s existed!", requestPayload.Email)
+		ctx.JSON(http.StatusNotFound, responseUser)
+		return
+	}
+
+	var user data.User
+	user.Email = requestPayload.Email
+	user.FirstName = requestPayload.FirstName
+	user.LastName = requestPayload.LastName
+	user.Password = requestPayload.Password
+
+	id, err := app.Models.User.Insert(user)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal error, db access failed!"})
+		return
+	}
+
+	responseUser.Status = "User added!"
+	responseUser.Message = fmt.Sprintf("User %s added and id: %d!", requestPayload.Email, id)
+	ctx.JSON(http.StatusOK, responseUser)
+
 }
 
 func (app *Config) Refresh(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"message": "session refreshed ok!"})
+
+	c, err := ctx.Request.Cookie(SESSION_TOKEN)
+	if err != nil {
+		if err == http.ErrNoCookie {
+			// If the cookie is not set, return an unauthorized status
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		// For any other type of error, return a bad request status
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+		return
+	}
+
+	sessionToken := c.Value
+
+	// We then get the name of the user from our session map, where we set the session token
+	userSession, exists := sessions[sessionToken]
+	if !exists {
+		// If the session token is not present in session map, return an unauthorized error
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// If the previous session is valid, create a new session token for the current user
+	newSessionToken := uuid.NewString()
+	expiresAt := time.Now().Add(120 * time.Second)
+
+	// Set the token in the session map, along with the user whom it represents
+	sessions[newSessionToken] = session{
+		username: userSession.username,
+		expiry:   expiresAt,
+	}
+
+	// Delete the older session token
+	delete(sessions, sessionToken)
+
+	// Finally, we set the client cookie for SESSION_TOKEN as the session token we just generated
+	// we also set an expiry time of 120 seconds
+	http.SetCookie(ctx.Writer, &http.Cookie{
+		Name:    SESSION_TOKEN,
+		Value:   newSessionToken,
+		Expires: expiresAt,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Session refreshed OK!"})
 }

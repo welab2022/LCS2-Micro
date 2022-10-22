@@ -27,7 +27,6 @@ func (app *Config) startApp() {
 	// map to URL
 	router.GET("/heartbeat", app.HeartBeat)
 	router.POST("/signin", app.Signin)
-	router.POST("/register", app.Register)
 
 	// Apply the middleware to the router (works on groups too)
 	router.Use(cors.Middleware(config))
@@ -37,6 +36,7 @@ func (app *Config) startApp() {
 	{
 		authorized.POST("/logout", app.Logout)
 		authorized.POST("/refresh", app.Refresh)
+		router.POST("/adduser", app.AddUser)
 	}
 
 	router.Run(":" + webPort)
