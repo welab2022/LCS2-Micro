@@ -16,10 +16,10 @@ func (app *Config) startApp() {
 	// Set up CORS middleware options
 	config := cors.Config{
 		Origins:         "*",
-		Methods:         "GET, PUT, POST, DELETE",
-		RequestHeaders:  "Origin, Authorization, Content-Type",
+		Methods:         "OPIONS, GET, PUT, POST, DELETE",
+		RequestHeaders:  "Origin, Authorization, Content-Type, Accept-Encoding, X-CSRF-Token",
 		ExposedHeaders:  "",
-		MaxAge:          1 * time.Minute,
+		MaxAge:          12 * time.Hour,
 		Credentials:     false,
 		ValidateHeaders: false,
 	}
