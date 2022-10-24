@@ -254,6 +254,9 @@ func (app *Config) AddUser(ctx *gin.Context) {
 	user.FirstName = requestPayload.FirstName
 	user.LastName = requestPayload.LastName
 	user.Password = requestPayload.Password
+	user.Active = 1
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
 
 	id, err := app.Models.User.Insert(user)
 	if err != nil {

@@ -48,8 +48,6 @@ services:
     volumes:
       - ./db-data/postgres/:/var/lib/postgresql/data/
       - ./initdb/users.sql:/docker-entrypoint-initdb.d/users.sql
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "ckan"]
     deploy:
       mode: replicated
       replicas: 1
