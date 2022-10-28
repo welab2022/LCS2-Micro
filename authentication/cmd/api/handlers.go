@@ -317,3 +317,58 @@ func (app *Config) Refresh(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Session refreshed OK!"})
 }
+
+func (app *Config) ChangePassword(ctx *gin.Context) {
+	if !app.validateSession(ctx) {
+		return
+	}
+
+	// user info request for changing password
+	var requestPayload struct {
+		Email       string `json:"email"`
+		OldPassword string `json:"old_password,omitempty"`
+		NewPassword string `json:"new_password,omitempty"`
+	}
+
+	var responseUser struct {
+		Status  string
+		Message string
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	if err := ctx.ShouldBindJSON(&requestPayload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "true",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// check if the user against database is existed
+	user, err := app.Models.User.GetByEmail(requestPayload.Email)
+	if err != nil {
+		// the user doesn't exists
+		responseUser.Status = "error"
+		responseUser.Message = fmt.Sprintf("User %s doesn't exist!", requestPayload.Email)
+		ctx.JSON(http.StatusNotFound, responseUser)
+		return
+	}
+
+	// the user exists and then check if the old password is matched
+	valid, err := user.PasswordMatches(requestPayload.OldPassword)
+	if err != nil || !valid {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Invalid password"})
+		return
+	}
+
+	err = user.ResetPassword(requestPayload.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Change password failure"})
+		return
+	}
+
+	responseUser.Status = "OK"
+	responseUser.Message = "Password changed successfully"
+	ctx.JSON(http.StatusOK, responseUser)
+}

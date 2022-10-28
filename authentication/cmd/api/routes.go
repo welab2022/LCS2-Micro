@@ -1,41 +1,49 @@
 package main
 
 import (
+	"os"
+	"time"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-const webPort = "80"
+var webPort = "80"
+
+const GROUP_AUTH_API = "/api/auth/"
 
 func (app *Config) startApp() {
 
 	router := gin.New()
 
+	// Apply the middleware to the router (works on groups too)
 	// Set up CORS middleware options
-	// config := cors.Config{
-	// 	Origins:         "*",
-	// 	Methods:         "OPIONS, GET, PUT, POST, DELETE",
-	// 	RequestHeaders:  "Origin, Authorization, Content-Type, Accept-Encoding, X-CSRF-Token",
-	// 	ExposedHeaders:  "",
-	// 	MaxAge:          12 * time.Hour,
-	// 	Credentials:     false,
-	// 	ValidateHeaders: false,
-	// }
+	router.Use(cors.Default())
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"OPIONS, GET, PUT, POST, DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length, Link"},
+		MaxAge:           12 * time.Hour,
+		AllowCredentials: true,
+	}))
 
-	// map to URL
 	router.GET("/heartbeat", app.HeartBeat)
 	router.POST("/signin", app.Signin)
 
-	// Apply the middleware to the router (works on groups too)
-	// router.Use(cors.Middleware(config))
-	router.Use(CORSMiddleware())
-
+	// auth with middleware
 	authorized := router.Group("/")
 	authorized.Use(AuthMiddleWare())
 	{
+		// map to URL
 		authorized.POST("/logout", app.Logout)
 		authorized.POST("/refresh", app.Refresh)
-		router.POST("/adduser", app.AddUser)
+		authorized.POST("/changepwd", app.ChangePassword)
+		authorized.POST("/adduser", app.AddUser)
 	}
 
+	if os.Getenv("AUTH_PORT") != "" {
+		webPort = os.Getenv("AUTH_PORT")
+	}
 	router.Run(":" + webPort)
 }
