@@ -22,11 +22,11 @@ func (app *Config) SendMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := Message {
-		From: requestPayload.From,
-		To: requestPayload.To,
+	msg := Message{
+		From:    requestPayload.From,
+		To:      requestPayload.To,
 		Subject: requestPayload.Subject,
-		Data: requestPayload.Message,
+		Data:    requestPayload.Message,
 	}
 
 	err = app.Mailer.SendSMTPMessage(msg)
@@ -36,10 +36,39 @@ func (app *Config) SendMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := jsonResponse {
-		Error: false,
+	payload := jsonResponse{
+		Error:   false,
 		Message: "sent to " + requestPayload.To,
 	}
 
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) VerifyMail(w http.ResponseWriter, r *http.Request) {
+	type emailAddress struct {
+		Email string `json:"email"`
+	}
+
+	var requestPayload emailAddress
+	err := app.readJSON(w, r, &requestPayload)
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	log.Printf("request verify email: %s", requestPayload.Email)
+
+	err = app.GetEmailVerification(requestPayload.Email)
+	if err != nil {
+		log.Println(err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "valid email: " + requestPayload.Email,
+	}
 	app.writeJSON(w, http.StatusAccepted, payload)
 }

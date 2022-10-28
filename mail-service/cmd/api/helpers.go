@@ -5,12 +5,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
+
+	emailVerifier "github.com/AfterShip/email-verifier"
 )
 
 type jsonResponse struct {
-	Error bool `json:"error"`
+	Error   bool   `json:"error"`
 	Message string `json:"message"`
-	Data any `json:"data,omitempty"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // readJSON tries to read the body of a request and converts it into JSON
@@ -70,4 +72,19 @@ func (app *Config) errorJSON(w http.ResponseWriter, err error, status ...int) er
 	payload.Message = err.Error()
 
 	return app.writeJSON(w, statusCode, payload)
+}
+
+func (app *Config) GetEmailVerification(email string) error {
+	var verifier = emailVerifier.NewVerifier()
+	ret, err := verifier.Verify(email)
+
+	if err != nil {
+		return err
+	}
+
+	if !ret.Syntax.Valid {
+		return errors.New("invalid email")
+	}
+
+	return nil
 }
