@@ -37,6 +37,20 @@ services:
     ports:
       - "9001:80"
 
+  enrollment:
+    container_name: enrollment_service
+    build:
+      context: ./enrollment
+      dockerfile: ./enrollment.dockerfile
+    restart: always
+    ports:
+      - "9002:80"
+    environment:
+      X_API_KEY: "sWOmNsF8Ht9lE9wMU9cW7w==n"
+    deploy:
+      mode: replicated
+      replicas: 1
+
   postgres:
     container_name: postgresql
     image: 'postgres:14.0'
@@ -80,4 +94,6 @@ services:
     container_name: api-gateway
     ports:
       - "8081:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
  

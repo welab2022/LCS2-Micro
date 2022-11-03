@@ -1,0 +1,44 @@
+[
+    {
+        "_id": "1",
+        "student": {
+            "full_name": "John Doe",
+            "nick_name": "Gau",
+            "dob": "2016-10-1",
+            "age": 5,
+            "gender": "male"
+        },
+        "guardians":{
+            "full_name": "Guardian name",
+            "email": "guardians@gmail.com",
+            "phoneno": "123456789",
+            "social_media": "facebook/guardian",
+            "address": "123 Street 5, Ward 12, HCMC Vietnam"
+        },
+        "class": ["classID1", "classID2"],
+        "enrolled_date": "2022-10-1",
+        "created_by": "staff1@staff.com",
+        "updated_by": "staff1@staff.com",
+        "created_at": "2021-01-17T19:28:52.803238+01:00",
+        "updated_at": "2021-01-17T19:28:52.803238+01:00",
+        "status": "enrolled", // enrolled, completed, postponed, unenrolled 
+        "comments": [	
+            {
+                "user":"staff",
+                "message": "TEXT",
+                "dateCreated": "DATE_TIME"
+            },
+            {
+                "user":"staff",
+                "message": "TEXT",
+                "dateCreated": "DATE_TIME"
+            }
+        ],
+        "has_seesaw": "yes",
+        "has_paid": "yes",
+        "paid_date": "2022-10-1",
+        "paid_amount": "5500000",
+        "act_log": "TEXT"
+    }
+]
+

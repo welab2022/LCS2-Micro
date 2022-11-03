@@ -1,5 +1,6 @@
 AUTHENTICATION_BINARY=authenticationApp
 MAIL_BINARY=mailerApp
+ENROLL_BINARY=enrollmentApp
 
 TEST_DIR=test
 TEST_REPORT=test/report/report.html
@@ -12,7 +13,7 @@ up:
 
 ## up_build: stops docker compose (if running), builds all projects and starts docker compose
 .PHONY: up_build
-up_build: build_auth build_mail
+up_build: build_auth build_mail build_enroll
 	@echo "Stopping docker images (if running...)"
 	docker compose down
 	@echo "Building (when required) and starting docker images..."
@@ -45,6 +46,15 @@ build_mail: clean_mail
 	@echo "Done!"
 	@echo
 
+## build_enroll: builds the enrollment binary as a linux executable 
+.PHONY: build_enroll
+build_enroll: clean_enroll
+	@echo
+	@echo "Building ${ENROLL_BINARY} binary..."
+	cd ./enrollment && GO111MODULE=on go mod download && env GOOS=linux CGO_ENABLED=0 go build -o ${ENROLL_BINARY} ./cmd/api
+	@echo "Done!"
+	@echo
+
 #############
 ## test_all: tests all the services
 .PHONY: test_all
@@ -74,9 +84,17 @@ clean_mail:
 	@echo "Done!"
 	@echo 
 
+.PHONY: clean_enroll
+clean_enroll:
+	@echo
+	@echo "Cleaning Enrollment service binaries..."
+	cd ./enrollment && rm -rf ${ENROLL_BINARY}
+	@echo "Done!"
+	@echo 
+
 ## clean_all: delete all objects and binaries of all the services
 .PHONY: clean
-clean: clean_auth clean_mail
+clean: clean_auth clean_mail clean_enroll
 	@echo
 	@echo "Cleaning up..."
 	@echo "Done!"
