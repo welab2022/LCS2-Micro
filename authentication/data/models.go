@@ -39,6 +39,7 @@ type User struct {
 	LastName  string    `json:"last_name,omitempty"`
 	Password  string    `json:"-"`
 	Active    int       `json:"active"`
+	LastLogin time.Time `json:"last_login"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -59,7 +60,7 @@ func (u *User) GetAll() ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, created_at, updated_at
+	query := `select id, email, first_name, last_name, password, user_active, last_login, created_at, updated_at
 	from users order by last_name`
 
 	rows, err := db.QueryContext(ctx, query)
@@ -79,6 +80,7 @@ func (u *User) GetAll() ([]*User, error) {
 			&user.LastName,
 			&user.Password,
 			&user.Active,
+			&user.LastLogin,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -98,7 +100,7 @@ func (u *User) GetByEmail(email string) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, created_at, updated_at from users where email = $1`
+	query := `select id, email, first_name, last_name, password, user_active, last_login, created_at, updated_at from users where email = $1`
 
 	var user User
 	row := db.QueryRowContext(ctx, query, email)
@@ -110,6 +112,7 @@ func (u *User) GetByEmail(email string) (*User, error) {
 		&user.LastName,
 		&user.Password,
 		&user.Active,
+		&user.LastLogin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -127,7 +130,7 @@ func (u *User) GetOne(id int) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, created_at, updated_at from users where id = $1`
+	query := `select id, email, first_name, last_name, password, user_active, last_login, created_at, updated_at from users where id = $1`
 
 	var user User
 	row := db.QueryRowContext(ctx, query, id)
@@ -139,6 +142,7 @@ func (u *User) GetOne(id int) (*User, error) {
 		&user.LastName,
 		&user.Password,
 		&user.Active,
+		&user.LastLogin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -153,6 +157,35 @@ func (u *User) GetOne(id int) (*User, error) {
 // Update updates one user in the database, using the information
 // stored in the receiver u
 func (u *User) Update() error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	stmt := `update users set
+		email = $1,
+		first_name = $2,
+		last_name = $3,
+		user_active = $4,
+		updated_at = $5
+		where id = $6
+	`
+
+	_, err := db.ExecContext(ctx, stmt,
+		u.Email,
+		u.FirstName,
+		u.LastName,
+		u.Active,
+		time.Now(),
+		u.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *User) UpdateAvatar(avatarHex string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
@@ -222,8 +255,8 @@ func (u *User) Insert(user User) (int, error) {
 	}
 
 	var newID int
-	stmt := `insert into users (email, first_name, last_name, password, user_active, created_at, updated_at)
-		values ($1, $2, $3, $4, $5, $6, $7) returning id`
+	stmt := `insert into users (email, first_name, last_name, password, user_active, last_login, created_at, updated_at)
+		values ($1, $2, $3, $4, $5, $6, $7, &8) returning id`
 
 	err = db.QueryRowContext(ctx, stmt,
 		user.Email,
@@ -231,6 +264,7 @@ func (u *User) Insert(user User) (int, error) {
 		user.LastName,
 		hashedPassword,
 		user.Active,
+		nil,
 		time.Now(),
 		time.Now(),
 	).Scan(&newID)
@@ -254,6 +288,19 @@ func (u *User) ResetPassword(password string) error {
 
 	stmt := `update users set password = $1 where id = $2`
 	_, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *User) LastLoginUpdate(_time string, email string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	stmt := `update users set last_login = $1 where email = $2`
+	_, err := db.ExecContext(ctx, stmt, _time, email)
 	if err != nil {
 		return err
 	}

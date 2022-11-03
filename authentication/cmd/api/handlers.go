@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -180,6 +181,7 @@ func (app *Config) Logout(ctx *gin.Context) {
 }
 
 func (app *Config) validateSession(ctx *gin.Context) bool {
+
 	c, err := ctx.Request.Cookie(SESSION_TOKEN)
 	if err != nil {
 		if err == http.ErrNoCookie {
@@ -255,6 +257,7 @@ func (app *Config) AddUser(ctx *gin.Context) {
 	user.LastName = requestPayload.LastName
 	user.Password = requestPayload.Password
 	user.Active = 1
+	user.LastLogin = time.Now()
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
@@ -267,7 +270,6 @@ func (app *Config) AddUser(ctx *gin.Context) {
 	responseUser.Status = "User added!"
 	responseUser.Message = fmt.Sprintf("User %s added and id: %d!", requestPayload.Email, id)
 	ctx.JSON(http.StatusOK, responseUser)
-
 }
 
 func (app *Config) Refresh(ctx *gin.Context) {
@@ -371,4 +373,50 @@ func (app *Config) ChangePassword(ctx *gin.Context) {
 	responseUser.Status = "OK"
 	responseUser.Message = "Password changed successfully"
 	ctx.JSON(http.StatusOK, responseUser)
+}
+
+func (app *Config) saveFileHandler(c *gin.Context) {
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": "No file is received",
+		})
+		return
+	}
+
+	// Retrieve file information
+	extension := filepath.Ext(file.Filename)
+	// Generate random file name for the new uploaded file so it doesn't override the old file with same name
+	newFileName := uuid.New().String() + extension
+
+	// The file is received, so let's save it
+	if err := c.SaveUploadedFile(file, newFileName); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": "Unable to save the file",
+		})
+		return
+	}
+
+	// File saved successfully. Return proper result
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Your file has been successfully uploaded.",
+	})
+}
+
+func (app *Config) ListAllUsers(ctx *gin.Context) {
+	if !app.validateSession(ctx) {
+		return
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	users, err := app.Models.User.GetAll()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal error, db access failed!"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, users)
+
 }

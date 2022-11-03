@@ -30,6 +30,7 @@ func (app *Config) startApp() {
 
 	router.GET("/heartbeat", app.HeartBeat)
 	router.POST("/signin", app.Signin)
+	router.POST("/upload", app.saveFileHandler)
 
 	// auth with middleware
 	authorized := router.Group("/")
@@ -40,6 +41,7 @@ func (app *Config) startApp() {
 		authorized.POST("/refresh", app.Refresh)
 		authorized.POST("/changepwd", app.ChangePassword)
 		authorized.POST("/adduser", app.AddUser)
+		authorized.GET("/listusers", app.ListAllUsers)
 	}
 
 	if os.Getenv("AUTH_PORT") != "" {
