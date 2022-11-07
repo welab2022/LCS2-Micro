@@ -1,7 +1,8 @@
-
 --
 -- Name: user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
+-- DROP TABLE IF EXISTS users;
+-- DROP SEQUENCE IF EXISTS public.user_id_seq;
 
 CREATE SEQUENCE public.user_id_seq
     START WITH 1
@@ -26,9 +27,10 @@ CREATE TABLE public.users (
     first_name character varying(255),
     last_name character varying(255),
     password character varying(60),
-    avatar bytea,
+    avatar bytea NULL,
     user_active integer DEFAULT 0,
-    last_login timestamp without time zone,
+    last_login timestamp without time zone NULL,
+    password_changed_at timestamp without time zone NULL,
     created_at timestamp without time zone,
     updated_at timestamp without time zone
 );
@@ -51,6 +53,6 @@ ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
 
-INSERT INTO "public"."users"("email","first_name","last_name","password","avatar", "user_active","last_login","created_at","updated_at")
+INSERT INTO "public"."users"("email","first_name","last_name","password", "user_active","last_login", "password_changed_at","created_at","updated_at")
 VALUES
-(E'admin@example.com',E'Admin',E'User',E'$2a$12$1zGLuYDDNvATh4RA4avbKuheAMpb1svexSzrQm7up.bnpwQHs0jNe', '\000',1,E'2022-03-14 00:00:00', E'2022-03-14 00:00:00',E'2022-03-14 00:00:00');
+(E'admin@example.com',E'Admin',E'User',E'$2a$12$1zGLuYDDNvATh4RA4avbKuheAMpb1svexSzrQm7up.bnpwQHs0jNe', 1, E'0001-01-01 00:00:00', E'0001-01-01 00:00:00',E'2022-03-14 00:00:00',E'2022-03-14 00:00:00');
