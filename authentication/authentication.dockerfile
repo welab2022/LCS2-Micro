@@ -6,5 +6,6 @@ FROM alpine:latest
 RUN mkdir -p /app
 
 COPY authenticationApp /app
+COPY Arial.ttf /app
 
 CMD [ "/app/authenticationApp"]

@@ -20,7 +20,8 @@ func (app *Config) startApp() {
 	// Set up CORS middleware options
 	router.Use(cors.Default())
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		// AllowOrigins:     []string{"*"},
+		AllowOrigins:     []string{"http://localhost:8080"},
 		AllowMethods:     []string{"OPIONS, GET, PUT, POST, DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length, Link"},
@@ -29,19 +30,23 @@ func (app *Config) startApp() {
 	}))
 
 	router.GET("/heartbeat", app.HeartBeat)
-	router.POST("/signin", app.Signin)
-	router.POST("/upload", app.saveFileHandler)
 
 	// auth with middleware
 	authorized := router.Group("/")
 	authorized.Use(AuthMiddleWare())
 	{
 		// map to URL
+		authorized.POST("/signin", app.Signin)
+		authorized.POST("/upload", app.UpdateAvatar)
+		authorized.GET("/avatar/:email", app.GetAvatar)
+		authorized.POST("resetpwd", app.ResetPassword)
+
 		authorized.POST("/logout", app.Logout)
 		authorized.POST("/refresh", app.Refresh)
 		authorized.POST("/changepwd", app.ChangePassword)
 		authorized.POST("/adduser", app.AddUser)
 		authorized.GET("/listusers", app.ListAllUsers)
+
 	}
 
 	if os.Getenv("AUTH_PORT") != "" {

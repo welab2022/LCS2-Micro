@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bufio"
-	"encoding/hex"
-	"fmt"
-	"io"
-	"log"
+	"encoding/base64"
 	"os"
 	"time"
+
+	_ "github.com/nicored/avatar"
+	"github.com/sethvargo/go-password/password"
 )
 
 const (
@@ -32,33 +31,26 @@ func GenerateTokenBase64() string {
 	return os.Getenv("X_API_KEY")
 }
 
-func ReadBinFile(binfile string) (string, error) {
-	f, err := os.Open(binfile)
+func ToBase64(b []byte) string {
+	return base64.StdEncoding.EncodeToString(b)
+}
 
-	if err != nil {
-		log.Fatal(err)
-	}
+func GeneratePassword() (string, error) {
+	// This is exactly the same as calling "Generate" directly. It will use all
+	// the default values.
+	// gen, err := password.NewGenerator(nil)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	defer f.Close()
-
-	reader := bufio.NewReader(f)
-	buf := make([]byte, 256)
-	output := make([]byte, 1024)
-
-	for {
-		_, err := reader.Read(buf)
-
-		if err != nil {
-			if err != io.EOF {
-				fmt.Println(err)
-			}
-			break
-		}
-
-		fmt.Printf("%s", hex.Dump(buf))
-		output = append(output[:], buf[:]...)
-	}
-	fmt.Println("got file:")
-	fmt.Printf("%s", hex.Dump(output))
-	return hex.Dump(output), nil
+	// _ = gen // gen.Generate(...)
+	// gen.Generate()
+	var (
+		length      = 6
+		numDigits   = 2
+		numSymbols  = 2
+		noUpper     = false
+		allowRepeat = true
+	)
+	return password.Generate(length, numDigits, numSymbols, noUpper, allowRepeat)
 }

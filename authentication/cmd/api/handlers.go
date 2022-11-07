@@ -1,15 +1,25 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/welab2022/LCS2-Micro/authentication/data"
 )
+
+type mailMessage struct {
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Message string `json:"message"`
+}
 
 type jsonResponse struct {
 	Status  string
@@ -67,8 +77,6 @@ func (app *Config) Signin(ctx *gin.Context) {
 		Password string `json:"password"`
 	}
 
-	var creds Credentials
-
 	ctx.Header("Content-Type", "application/json; charset=utf-8")
 
 	if err := ctx.ShouldBindJSON(&requestPayload); err != nil {
@@ -98,7 +106,7 @@ func (app *Config) Signin(ctx *gin.Context) {
 
 	// Set the token in the session map, along with the user whom it represents
 	sessions[sessionToken] = session{
-		username: creds.Username,
+		username: requestPayload.Email,
 		expiry:   expiresAt,
 	}
 
@@ -109,6 +117,14 @@ func (app *Config) Signin(ctx *gin.Context) {
 		Message: fmt.Sprintf("Authenticated! Logged in user: %s", user.Email),
 		API:     api_key,
 		Data:    user,
+	}
+
+	// update the last_login
+	now := time.Now()
+	err = user.LastLoginUpdate(now, user.Email)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Can't not update database"})
+		return
 	}
 
 	// Finally, we set the client cookie for SESSION_TOKEN as the session token we just generated
@@ -137,31 +153,30 @@ func (app *Config) Signin(ctx *gin.Context) {
 //	    description: Service not found
 func (app *Config) Logout(ctx *gin.Context) {
 
-	c, err := ctx.Request.Cookie(SESSION_TOKEN)
+	sessionToken, err := app.validateSession(ctx)
 	if err != nil {
-		if err == http.ErrNoCookie {
-			// If the cookie is not set, return an unauthorized status
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-		// For any other type of error, return a bad request status
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
 		return
 	}
 
-	sessionToken := c.Value
+	var requestPayload struct {
+		Email string `json:"email"`
+	}
 
-	// We then get the name of the user from our session map, where we set the session token
-	userSession, exists := sessions[sessionToken]
-	if !exists {
-		// If the session token is not present in session map, return an unauthorized error
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	if err := ctx.ShouldBindJSON(&requestPayload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "true",
+			"message": err.Error(),
+		})
 		return
 	}
 
-	if userSession.isExpired() {
-		delete(sessions, sessionToken)
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Expired => Unauthorized. Please refresh your session!"})
+	if requestPayload.Email != sessions[sessionToken].username {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "true",
+			"message": "You must to sign in before log out",
+		})
 		return
 	}
 
@@ -180,18 +195,18 @@ func (app *Config) Logout(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Logged out!"})
 }
 
-func (app *Config) validateSession(ctx *gin.Context) bool {
+func (app *Config) validateSession(ctx *gin.Context) (string, error) {
 
 	c, err := ctx.Request.Cookie(SESSION_TOKEN)
 	if err != nil {
 		if err == http.ErrNoCookie {
 			// If the cookie is not set, return an unauthorized status
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return false
+			return "", err
 		}
 		// For any other type of error, return a bad request status
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
-		return false
+		return "", err
 	}
 
 	sessionToken := c.Value
@@ -201,20 +216,27 @@ func (app *Config) validateSession(ctx *gin.Context) bool {
 	if !exists {
 		// If the session token is not present in session map, return an unauthorized error
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return false
+		return "", err
 	}
 
 	if userSession.isExpired() {
 		delete(sessions, sessionToken)
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Expired => Unauthorized. Please refresh your session!"})
-		return false
+		return "", err
 	}
-	return true
+
+	return sessionToken, nil
 }
 
 func (app *Config) AddUser(ctx *gin.Context) {
 
-	if !app.validateSession(ctx) {
+	sessionToken, err := app.validateSession(ctx)
+	if err != nil {
+		return
+	}
+
+	if sessions[sessionToken].username != "admin@example.com" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"message": "No permission to add a new user"})
 		return
 	}
 
@@ -233,33 +255,35 @@ func (app *Config) AddUser(ctx *gin.Context) {
 
 	ctx.Header("Content-Type", "application/json; charset=utf-8")
 
-	if err := ctx.ShouldBindJSON(&requestPayload); err != nil {
+	if err = ctx.ShouldBindJSON(&requestPayload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error":   "true",
 			"message": err.Error(),
 		})
+		log.Printf("bindJsonReq error: %s", err)
 		return
 	}
 
 	// check if the user against database is existed
-	_, err := app.Models.User.GetByEmail(requestPayload.Email)
+	exist_user, err := app.Models.User.GetByEmail(requestPayload.Email)
 
-	if err == nil {
+	if exist_user != nil && err == nil {
 		responseUser.Status = "error"
-		responseUser.Message = fmt.Sprintf("User %s existed!", requestPayload.Email)
+		responseUser.Message = fmt.Sprintf("User %s already existed!", requestPayload.Email)
 		ctx.JSON(http.StatusNotFound, responseUser)
 		return
 	}
-
+	// password needs to be generated and sent through a user registration email
 	var user data.User
 	user.Email = requestPayload.Email
 	user.FirstName = requestPayload.FirstName
 	user.LastName = requestPayload.LastName
 	user.Password = requestPayload.Password
 	user.Active = 1
-	user.LastLogin = time.Now()
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
+	user.LastLogin = time.Time{}
+	user.PasswordChangeAt = time.Time{}
 
 	id, err := app.Models.User.Insert(user)
 	if err != nil {
@@ -274,19 +298,10 @@ func (app *Config) AddUser(ctx *gin.Context) {
 
 func (app *Config) Refresh(ctx *gin.Context) {
 
-	c, err := ctx.Request.Cookie(SESSION_TOKEN)
+	sessionToken, err := app.validateSession(ctx)
 	if err != nil {
-		if err == http.ErrNoCookie {
-			// If the cookie is not set, return an unauthorized status
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-		// For any other type of error, return a bad request status
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
 		return
 	}
-
-	sessionToken := c.Value
 
 	// We then get the name of the user from our session map, where we set the session token
 	userSession, exists := sessions[sessionToken]
@@ -321,7 +336,8 @@ func (app *Config) Refresh(ctx *gin.Context) {
 }
 
 func (app *Config) ChangePassword(ctx *gin.Context) {
-	if !app.validateSession(ctx) {
+	sessionToken, err := app.validateSession(ctx)
+	if err != nil {
 		return
 	}
 
@@ -344,6 +360,11 @@ func (app *Config) ChangePassword(ctx *gin.Context) {
 			"error":   "true",
 			"message": err.Error(),
 		})
+		return
+	}
+
+	if sessions[sessionToken].username != requestPayload.Email {
+		ctx.JSON(http.StatusNotFound, gin.H{"message": "%s is not authenticated yet, please sign in to the syste"})
 		return
 	}
 
@@ -375,37 +396,100 @@ func (app *Config) ChangePassword(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, responseUser)
 }
 
-func (app *Config) saveFileHandler(c *gin.Context) {
-
-	file, err := c.FormFile("file")
+func (app *Config) UpdateAvatar(ctx *gin.Context) {
+	sessionToken, err := app.validateSession(ctx)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"message": "No file is received",
-		})
 		return
 	}
 
-	// Retrieve file information
-	extension := filepath.Ext(file.Filename)
-	// Generate random file name for the new uploaded file so it doesn't override the old file with same name
-	newFileName := uuid.New().String() + extension
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
 
-	// The file is received, so let's save it
-	if err := c.SaveUploadedFile(file, newFileName); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"message": "Unable to save the file",
+	file, _, err := ctx.Request.FormFile("file")
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": "No file is received",
+		})
+		log.Printf("No file is received err: %s", err)
+		return
+	}
+	defer file.Close()
+
+	buf := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buf, file); err != nil {
+		return
+	}
+
+	// need to be authorized here, session to get the email
+	email := sessions[sessionToken].username
+
+	err = app.Models.User.UpdateAvatar(buf.Bytes(), email)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": "Unable to store database",
 		})
 		return
 	}
 
 	// File saved successfully. Return proper result
-	c.JSON(http.StatusOK, gin.H{
+	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Your file has been successfully uploaded.",
 	})
 }
 
+func (app *Config) GetAvatar(ctx *gin.Context) {
+	sessionToken, err := app.validateSession(ctx)
+	if err != nil {
+		return
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	email := ctx.Param("email")
+	if sessions[sessionToken].username != email {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"message": "No permission, unthorized",
+		})
+		return
+
+	}
+
+	bytes, err := app.Models.User.GetAvatar(email)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "Failure!",
+			"message": fmt.Sprintf("Query %s avatar failed!", email),
+		})
+		return
+	}
+
+	var responseAvatar struct {
+		Email    string
+		MimeType string
+		Base64   string
+	}
+
+	var base64Encoding string
+	mimeType := http.DetectContentType(bytes)
+
+	switch mimeType {
+	case "image/jpeg":
+		base64Encoding += "data:image/jpeg;base64,"
+	case "image/png":
+		base64Encoding += "data:image/png;base64,"
+	}
+
+	base64Encoding += ToBase64(bytes)
+
+	responseAvatar.Email = email
+	responseAvatar.MimeType = mimeType
+	responseAvatar.Base64 = base64Encoding
+
+	ctx.JSON(http.StatusOK, responseAvatar)
+}
+
 func (app *Config) ListAllUsers(ctx *gin.Context) {
-	if !app.validateSession(ctx) {
+	_, err := app.validateSession(ctx)
+	if err != nil {
 		return
 	}
 
@@ -419,4 +503,92 @@ func (app *Config) ListAllUsers(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, users)
 
+}
+
+func (app *Config) ResetPassword(ctx *gin.Context) {
+	_, err := app.validateSession(ctx)
+	if err != nil {
+		return
+	}
+
+	// user info request for changing password
+	var requestPayload struct {
+		Email string `json:"email"`
+	}
+
+	var responseUser struct {
+		Status  string
+		Message string
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	if err := ctx.ShouldBindJSON(&requestPayload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "true",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// check if the user against database is existed
+	user, err := app.Models.User.GetByEmail(requestPayload.Email)
+	if err != nil {
+		// the user doesn't exists
+		responseUser.Status = "error"
+		responseUser.Message = fmt.Sprintf("User %s doesn't exist!", requestPayload.Email)
+		ctx.JSON(http.StatusNotFound, responseUser)
+		return
+	}
+
+	// generate the reset password
+	rstpassword, _ := GeneratePassword()
+
+	log.Printf("reset password: %s", rstpassword)
+
+	err = user.ResetPassword(rstpassword)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Can't reset password"})
+		return
+	}
+
+	responseUser.Status = "Reset succeeded"
+	responseUser.Message = fmt.Sprintf("Reset password is sent to email: %s", requestPayload.Email)
+
+	// sent email
+	var mail mailMessage
+	mail.From = "admin@example.com"
+	mail.To = requestPayload.Email
+	mail.Subject = "Reset password"
+
+	mail.Message = fmt.Sprintf("Hello,\n reset password is %s", rstpassword)
+
+	err = app.sendMail(mail)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Can't send reset password email"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, responseUser)
+
+}
+
+func (app *Config) sendMail(mail mailMessage) error {
+
+	mailServiceURL := "http://host.docker.internal:9001/send"
+	jsonData, _ := json.MarshalIndent(mail, "", "\t")
+	request, err := http.NewRequest("POST", mailServiceURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("newMessage: sendMail failed %s", err)
+		return err
+	}
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil || response.StatusCode != 202 {
+		log.Printf("http: sendMail failed %s", err)
+		return err
+	}
+
+	return nil
 }

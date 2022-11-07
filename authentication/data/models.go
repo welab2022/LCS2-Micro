@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"image/color"
 	"log"
+	"os"
 	"time"
 
+	"github.com/nicored/avatar"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -33,15 +36,16 @@ type Models struct {
 
 // User is the structure which holds one user from the database.
 type User struct {
-	ID        int       `json:"id"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"first_name,omitempty"`
-	LastName  string    `json:"last_name,omitempty"`
-	Password  string    `json:"-"`
-	Active    int       `json:"active"`
-	LastLogin time.Time `json:"last_login"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID               int       `json:"id"`
+	Email            string    `json:"email"`
+	FirstName        string    `json:"first_name,omitempty"`
+	LastName         string    `json:"last_name,omitempty"`
+	Password         string    `json:"-"`
+	Active           int       `json:"active"`
+	LastLogin        time.Time `json:"last_login"`
+	PasswordChangeAt time.Time `json:"password_changed_at"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // ? ForgotPasswordInput struct
@@ -55,16 +59,30 @@ type ResetPasswordInput struct {
 	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
 }
 
+// GET the data directory on postgres (/var/lib/postgres/data)
+func (u *User) GetDataDirPath() string {
+	var data_path string
+
+	query := "show data_directory;"
+	err := db.QueryRow(query).Scan(&data_path)
+	if err != nil {
+		return ""
+	}
+
+	return data_path
+}
+
 // GetAll returns a slice of all users, sorted by last name
 func (u *User) GetAll() ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, last_login, created_at, updated_at
+	query := `select id, email, first_name, last_name, password, user_active, last_login, password_changed_at, created_at, updated_at
 	from users order by last_name`
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
+		log.Printf("QueryContext err: %s", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -81,6 +99,7 @@ func (u *User) GetAll() ([]*User, error) {
 			&user.Password,
 			&user.Active,
 			&user.LastLogin,
+			&user.PasswordChangeAt,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -100,7 +119,7 @@ func (u *User) GetByEmail(email string) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, last_login, created_at, updated_at from users where email = $1`
+	query := `select id, email, first_name, last_name, password, user_active, last_login, password_changed_at, created_at, updated_at from users where email = $1`
 
 	var user User
 	row := db.QueryRowContext(ctx, query, email)
@@ -113,6 +132,7 @@ func (u *User) GetByEmail(email string) (*User, error) {
 		&user.Password,
 		&user.Active,
 		&user.LastLogin,
+		&user.PasswordChangeAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -130,7 +150,7 @@ func (u *User) GetOne(id int) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, last_login, created_at, updated_at from users where id = $1`
+	query := `select id, email, first_name, last_name, password, user_active, last_login, password_changed_at, created_at, updated_at from users where id = $1`
 
 	var user User
 	row := db.QueryRowContext(ctx, query, id)
@@ -143,6 +163,7 @@ func (u *User) GetOne(id int) (*User, error) {
 		&user.Password,
 		&user.Active,
 		&user.LastLogin,
+		&user.PasswordChangeAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -185,33 +206,48 @@ func (u *User) Update() error {
 	return nil
 }
 
-func (u *User) UpdateAvatar(avatarHex string) error {
+func (u *User) UpdateAvatar(avatarHex []byte, email string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
+	log.Printf("email: %s", email)
+
 	stmt := `update users set
-		email = $1,
-		first_name = $2,
-		last_name = $3,
-		user_active = $4,
-		updated_at = $5
-		where id = $6
+		avatar = $1::bytea
+		where email = $2
 	`
+	log.Printf("stmt: %s", stmt)
 
 	_, err := db.ExecContext(ctx, stmt,
-		u.Email,
-		u.FirstName,
-		u.LastName,
-		u.Active,
-		time.Now(),
-		u.ID,
+		avatarHex,
+		email,
 	)
 
 	if err != nil {
+		log.Printf("err: %s", err.Error())
 		return err
 	}
 
 	return nil
+}
+
+func (u *User) GetAvatar(email string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	query := `select avatar from users where email = $1`
+
+	var buf []byte
+
+	row := db.QueryRowContext(ctx, query, email)
+
+	err := row.Scan(&buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+
 }
 
 // Delete deletes one user from the database, by User.ID
@@ -244,6 +280,33 @@ func (u *User) DeleteByID(id int) error {
 	return nil
 }
 
+func (u *User) GenerateCircleAvatar(initial string) ([]byte, error) {
+	size := 200
+	newAvatar, err := avatar.NewAvatarFromInitials([]byte(initial), &avatar.InitialsOptions{
+		FontPath:  "/app/Arial.ttf",           // Required
+		Size:      size,                       // default 300
+		NInitials: 2,                          // default 1 - If 0, the whole text will be printed
+		TextColor: color.White,                // Default White
+		BgColor:   color.RGBA{0, 0, 255, 255}, // Default color.RGBA{215, 0, 255, 255} (purple)
+	})
+	if err != nil {
+		log.Printf("Generate Avatar error: %s", err)
+		return nil, err
+	}
+
+	// square, _ := newAvatar.Square()
+	// squareFile, _ := os.Create("./output/square_john_smith_initials.png")
+	// defer squareFile.Close()
+	// squareFile.Write(square)
+
+	round, err := newAvatar.Circle()
+	roundFile, _ := os.Create("./initial_circle.png")
+	defer roundFile.Close()
+	roundFile.Write(round)
+
+	return round, err
+}
+
 // Insert inserts a new user into the database, and returns the ID of the newly inserted row
 func (u *User) Insert(user User) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
@@ -254,24 +317,37 @@ func (u *User) Insert(user User) (int, error) {
 		return 0, err
 	}
 
-	var newID int
-	stmt := `insert into users (email, first_name, last_name, password, user_active, last_login, created_at, updated_at)
-		values ($1, $2, $3, $4, $5, $6, $7, &8) returning id`
+	var fullname = user.FirstName + user.LastName
+	avatar, err := u.GenerateCircleAvatar(fullname)
+	if err != nil {
+		log.Printf("Generate avatar failed, err: %s", err)
+		return 0, err
+	}
 
-	err = db.QueryRowContext(ctx, stmt,
+	stmt := `insert into users (email, first_name, last_name, password, avatar, user_active, last_login, password_changed_at, created_at, updated_at)
+	values ($1, $2, $3, $4, $5::bytea, $6, $7, $8, $9, $10) returning id`
+
+	row := db.QueryRowContext(ctx, stmt,
 		user.Email,
 		user.FirstName,
 		user.LastName,
 		hashedPassword,
+		avatar,
 		user.Active,
-		nil,
+		user.LastLogin,
+		user.PasswordChangeAt,
 		time.Now(),
 		time.Now(),
-	).Scan(&newID)
+	)
+	var newID int
+	err = row.Scan(&newID)
 
 	if err != nil {
-		return 0, err
+		log.Printf("err: %s", err)
+		log.Printf("return id: %d", newID)
+		return newID, err
 	}
+	log.Printf("return id: %d", newID)
 
 	return newID, nil
 }
@@ -286,8 +362,10 @@ func (u *User) ResetPassword(password string) error {
 		return err
 	}
 
-	stmt := `update users set password = $1 where id = $2`
-	_, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID)
+	var password_changed_at = time.Now()
+
+	stmt := `update users set password = $1, password_changed_at = $2 where id = $3`
+	_, err = db.ExecContext(ctx, stmt, hashedPassword, password_changed_at, u.ID)
 	if err != nil {
 		return err
 	}
@@ -295,13 +373,14 @@ func (u *User) ResetPassword(password string) error {
 	return nil
 }
 
-func (u *User) LastLoginUpdate(_time string, email string) error {
+func (u *User) LastLoginUpdate(_time time.Time, email string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
 	stmt := `update users set last_login = $1 where email = $2`
 	_, err := db.ExecContext(ctx, stmt, _time, email)
 	if err != nil {
+		log.Printf("LastLoginUpdate: err: %s", err)
 		return err
 	}
 
