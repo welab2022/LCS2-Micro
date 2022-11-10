@@ -18,12 +18,11 @@ func (app *Config) startApp() {
 
 	// Apply the middleware to the router (works on groups too)
 	// Set up CORS middleware options
-	router.Use(cors.Default())
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8000/", "http://localhost:3000/", "http://localhost:8081"},
+		AllowOrigins:     []string{"http://localhost:8000", "http://localhost:3000", "http://localhost:8081", "http://localhost:8080"},
 		AllowMethods:     []string{"GET", "PATCH", "POST", "PUT", "OPTIONS", "DELETE"},
-		AllowHeaders:     []string{"Origin", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token", "Authorization", "X-API-Key"},
-		ExposeHeaders:    []string{"Content-Length, Link"},
+		AllowHeaders:     []string{"Origin", "X-API-Key", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length, Link, X-API-Key"},
 		MaxAge:           12 * time.Hour,
 		AllowCredentials: true,
 	}))

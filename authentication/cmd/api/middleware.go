@@ -1,14 +1,29 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
+func AddCorsHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+	}
+
+}
+
 func AuthMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		log.Printf("Client IP: %s", c.ClientIP())
+		log.Printf("Request header: %s", c.Request.Header)
+
+		if c.Request.Method == "OPTIONS" {
+			log.Printf("CORS headers")
+		}
 
 		if c.GetHeader("X-API-KEY") == "" {
 			c.JSON(http.StatusNotAcceptable, gin.H{

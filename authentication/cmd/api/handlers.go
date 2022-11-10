@@ -293,6 +293,10 @@ func (app *Config) AddUser(ctx *gin.Context) {
 
 	responseUser.Status = "User added!"
 	responseUser.Message = fmt.Sprintf("User %s added and id: %d!", requestPayload.Email, id)
+
+	// need to send an email notification
+	// ...
+
 	ctx.JSON(http.StatusOK, responseUser)
 }
 
