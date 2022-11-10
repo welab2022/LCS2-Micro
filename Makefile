@@ -2,8 +2,9 @@ AUTHENTICATION_BINARY=authenticationApp
 MAIL_BINARY=mailerApp
 ENROLL_BINARY=enrollmentApp
 
-TEST_DIR=test
-TEST_REPORT=test/report/report.html
+TEST_DIR=tests
+TEST_REPORT_NAME=lcs2_int_test_report.html
+TEST_REPORT=${TEST_DIR}/report/${TEST_REPORT_NAME}
 ## up: starts all containers in the background without forcing build
 .PHONY: up
 up:
@@ -57,12 +58,12 @@ build_enroll: clean_enroll
 
 #############
 ## test_all: tests all the services
-.PHONY: test_all
-test_all:
+.PHONY: test_api
+test_api:
 	@echo
 	@echo "Testing all the services..."
-	pytest -v ${TEST_DIR} --html=${TEST_REPORT}
-	open ${TEST_REPORT}
+	cd ${TEST_DIR} && pytest 
+	
 	@echo "Done!"
 	@echo
 
