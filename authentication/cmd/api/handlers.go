@@ -270,7 +270,7 @@ func (app *Config) AddUser(ctx *gin.Context) {
 	if exist_user != nil && err == nil {
 		responseUser.Status = "error"
 		responseUser.Message = fmt.Sprintf("User %s already existed!", requestPayload.Email)
-		ctx.JSON(http.StatusNotFound, responseUser)
+		ctx.JSON(http.StatusInternalServerError, responseUser)
 		return
 	}
 	// password needs to be generated and sent through a user registration email
