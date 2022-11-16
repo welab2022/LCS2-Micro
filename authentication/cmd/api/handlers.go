@@ -102,7 +102,7 @@ func (app *Config) Signin(ctx *gin.Context) {
 	}
 
 	sessionToken := uuid.NewString()
-	expiresAt := time.Now().Add(120 * time.Second)
+	expiresAt := time.Now().Add(1000 * 60 * 60 * 24 * 30 * time.Second) // 30 days
 
 	// Set the token in the session map, along with the user whom it represents
 	sessions[sessionToken] = session{
@@ -130,9 +130,11 @@ func (app *Config) Signin(ctx *gin.Context) {
 	// Finally, we set the client cookie for SESSION_TOKEN as the session token we just generated
 	// we also set an expiry time of 120 seconds
 	http.SetCookie(ctx.Writer, &http.Cookie{
-		Name:    SESSION_TOKEN,
-		Value:   sessionToken,
-		Expires: expiresAt,
+		Name:     SESSION_TOKEN,
+		Value:    sessionToken,
+		Expires:  expiresAt,
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
 	})
 
 	ctx.JSON(http.StatusAccepted, payload)
@@ -187,9 +189,10 @@ func (app *Config) Logout(ctx *gin.Context) {
 	// In the response, we set the session token to an empty
 	// value and set its expiry as the current time
 	http.SetCookie(ctx.Writer, &http.Cookie{
-		Name:    SESSION_TOKEN,
-		Value:   "",
-		Expires: time.Now(),
+		Name:     SESSION_TOKEN,
+		Value:    "",
+		Expires:  time.Now(),
+		SameSite: http.SameSiteDefaultMode,
 	})
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Logged out!"})
@@ -317,7 +320,7 @@ func (app *Config) Refresh(ctx *gin.Context) {
 
 	// If the previous session is valid, create a new session token for the current user
 	newSessionToken := uuid.NewString()
-	expiresAt := time.Now().Add(120 * time.Second)
+	expiresAt := time.Now().Add(1000 * 60 * 60 * 24 * 30 * time.Second)
 
 	// Set the token in the session map, along with the user whom it represents
 	sessions[newSessionToken] = session{
@@ -331,9 +334,10 @@ func (app *Config) Refresh(ctx *gin.Context) {
 	// Finally, we set the client cookie for SESSION_TOKEN as the session token we just generated
 	// we also set an expiry time of 120 seconds
 	http.SetCookie(ctx.Writer, &http.Cookie{
-		Name:    SESSION_TOKEN,
-		Value:   newSessionToken,
-		Expires: expiresAt,
+		Name:     SESSION_TOKEN,
+		Value:    newSessionToken,
+		Expires:  expiresAt,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Session refreshed OK!"})
@@ -368,7 +372,7 @@ func (app *Config) ChangePassword(ctx *gin.Context) {
 	}
 
 	if sessions[sessionToken].username != requestPayload.Email {
-		ctx.JSON(http.StatusNotFound, gin.H{"message": "%s is not authenticated yet, please sign in to the syste"})
+		ctx.JSON(http.StatusNotFound, gin.H{"message": "%s is not authenticated yet, please sign in to the system"})
 		return
 	}
 
