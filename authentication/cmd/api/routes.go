@@ -44,6 +44,7 @@ func (app *Config) startApp() {
 		authorized.POST("/changepwd", app.ChangePassword)
 		authorized.POST("/adduser", app.AddUser)
 		authorized.GET("/listusers", app.ListAllUsers)
+		authorized.GET("/user/:email", app.GetUser)
 
 	}
 

@@ -231,6 +231,31 @@ func (app *Config) validateSession(ctx *gin.Context) (string, error) {
 	return sessionToken, nil
 }
 
+func (app *Config) GetUser(ctx *gin.Context) {
+	sessionToken, err := app.validateSession(ctx)
+	if err != nil {
+		return
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+
+	email := ctx.Param("email")
+	if sessions[sessionToken].username != email {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"message": "No permission, unthorized",
+		})
+		return
+	}
+
+	user, err := app.Models.User.GetByEmail(email)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal error, db access failed!"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, user)
+}
+
 func (app *Config) AddUser(ctx *gin.Context) {
 
 	sessionToken, err := app.validateSession(ctx)
